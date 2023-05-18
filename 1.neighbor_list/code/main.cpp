@@ -1,30 +1,30 @@
+#include <iostream>
 #include <stdio.h>
-#include <cmath>
 #include <vector>
+#include <cmath>
+#include <initializer_list>
 
 
 struct Particle {
-    double x, y;
+    double coord[3];
+
+    Particle(std::initializer_list<double> lst) {
+        this->coord[0] = *(lst.begin());
+        this->coord[1] = *(lst.begin() + 1);
+        this->coord[2] = *(lst.begin() + 2);
+    }
 };
 
 
-class LinkedCellList {
-public:
-    double boxSizeX, boxSizeY;
-    double cellSize;
-    int numCellX, numCellY;
+class VerletList {
+private:
+    double cutoff;
     std::vector<Particle> particles;
-    std::vector<int> head_lst;  // Store the max index of particle inside the cell
-    std::vector<int> next_lst;  // Store the smaller index for the particle
+    std::vector<std::vector<int>> lists;
 
+public:
     // 1. Constructor
-    LinkedCellList(double box_size_x, double box_size_y, double cell_size) 
-        : boxSizeX(box_size_x), boxSizeY(box_size_y), cellSize(cell_size) 
-    {
-        this->numCellX = std::ceil(this->boxSizeX / this->cellSize);
-        this->numCellY = std::ceil(this->boxSizeY / this->cellSize);
-    }
-
+    VerletList(double cutoff) : cutoff(cutoff) {}
 
     // 2. add particle
     void addParticle(Particle &particle) {
@@ -32,108 +32,67 @@ public:
     }
 
 
-    // 3. wrap around for central cell
-    void wrap_cell_index(int &cell_ix, int &cell_iy) {
-        cell_ix = std::fmod(cell_ix+this->numCellX, this->numCellX);
-        cell_iy = std::fmod(cell_iy+this->numCellY, this->numCellY);
+    // 3. get distance
+    const double get_distances(const Particle &p1, const Particle &p2) const {
+        double dx = p2.coord[0] - p1.coord[0];
+        double dy = p2.coord[1] - p1.coord[0];
+        double dz = p2.coord[2] - p1.coord[0];
+
+        return std::sqrt(dx*dx + dy*dy + dz*dz);
     }
 
 
-    // 4. getNbrCellIndices
-    const std::vector<int> getNbrCellIndices(int cell_index) {
-        std::vector<int> nbr_cell_indices;
+    // 4. Build lists
+    void build_lists() {
+        int num_particles = this->particles.size();
+        this->lists.resize(num_particles);
 
-        int cell_ix = std::fmod(cell_index, this->numCellX);
-        int cell_iy = cell_index / this->numCellY;
+        for (int i=0; i<num_particles; i++) {
+            this->lists[i].clear();
+        }
 
-        for (int dy=-1; dy<=1; dy++) {
-            for (int dx=-1; dx<=1; dx++) {
-                int cell_nx = cell_ix + dx;
-                int cell_ny = cell_iy + dy;
-                this->wrap_cell_index(cell_nx, cell_ny);
-
-                int nbrCellIndex = cell_nx + cell_ny*this->numCellX;
-                nbr_cell_indices.push_back(nbrCellIndex);
+        for (int i=0; i<num_particles; i++) {
+            for (int j=i+1; j<num_particles; j++) {
+                if (this->get_distances(this->particles[i], this->particles[j]) <= this->cutoff) {
+                    this->lists[i].push_back(j);
+                    this->lists[j].push_back(i);
+                }
             }
         }
-        return nbr_cell_indices;
     }
 
 
-    // 5. Get cell index for given particle
-    const int getCellIndex(Particle &particle) const {
-        int cell_ix = std::floor(particle.x / this->cellSize);
-        int cell_iy = std::floor(particle.y / this->cellSize);
-        return cell_ix + cell_iy*this->numCellX;
-    }
-
-
-    // 6. build list
-    void buildList() {
-        // Step 1. Initilizer arrays
-        int num_cells = this->numCellX * this->numCellY;
-        this->head_lst.resize(num_cells, -1);
-        this->next_lst.resize(this->particles.size(), -1);
-
-        // Step 2. populate the arrays
-        for (int i=0; i<this->particles.size(); i++) {
-            int cell_index = this->getCellIndex(this->particles[i]);
-            this->next_lst[i] = this->head_lst[cell_index];
-            this->head_lst[cell_index] = i;
+    // 5. 
+    void print_lists() {
+        for (int i=0; i<this->lists.size(); i++) {
+            printf("%d: ", i);
+            for (int j=0; j<this->lists[i].size(); j++) {
+                printf("%d\t", this->lists[i][j]);
+            }
+            printf("\n");
         }
     }
 
-    // 7. Get particles inside specific cell
-    const std::vector<int> getParticlesInsideCell(int cell_index) {
-        std::vector<int> particleIncides;
-
-        int start = this->head_lst[cell_index];
-        while (start != -1) {   // Starting search inside cell
-            particleIncides.push_back(start);
-            start = this->next_lst[start];
-        }
-
-        return particleIncides;
-    }
-
-
-    // 8. Find neighbor particles for specific central particle
-    
 
 };
 
 
+
 int main() {
-    double box_size_x = 10;
-    double box_size_y = 10;
-    double cell_size = 5;
+    // Create Verlet list with a cutoff radius of 2.0
+    VerletList verletList(2.0);
 
-    Particle p0 = {6., 9.};
-    Particle p1 = {4.4, 3};
-    Particle p2 = {7.5, 6};
-    Particle p3 = {3.5, 2};
-    Particle p4 = {6, 3.7};
-    Particle p5 = {8.5, 2};
-    Particle p6 = {9, 9};
-    Particle p7 = {1, 4};
+    // Add particles to the Verlet list
+    Particle p1 = {0.0, 0.0, 0.0};
+    Particle p2 = {1.0, 1.0, 1.0};
+    Particle p3 = {2.0, 2.0, 2.0};
+    verletList.addParticle(p1);
+    verletList.addParticle(p2);
+    verletList.addParticle(p3);
 
-    LinkedCellList lcl(box_size_x, box_size_y, cell_size);
-    lcl.addParticle(p0);
-    lcl.addParticle(p1);    
-    lcl.addParticle(p2);
-    lcl.addParticle(p3);
-    lcl.addParticle(p4);
-    lcl.addParticle(p5);
-    lcl.addParticle(p6);
-    lcl.addParticle(p7);
-    lcl.buildList();
+    // Build the Verlet lists
+    verletList.build_lists();
 
-    std::vector<int> particles_inside_cell = lcl.getParticlesInsideCell(3);
-    for (int i: particles_inside_cell) {
-        printf("%d, ", i);
-    }
-    printf("\n");
-
-
+    verletList.print_lists();
     return 0;
 }
