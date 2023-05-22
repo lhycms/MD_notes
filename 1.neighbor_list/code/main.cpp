@@ -1,8 +1,7 @@
-#include <iostream>
 #include <stdio.h>
 #include <vector>
-#include <cmath>
 #include <initializer_list>
+#include <cmath>
 
 
 struct Particle {
@@ -10,8 +9,8 @@ struct Particle {
 
     Particle(std::initializer_list<double> lst) {
         this->coord[0] = *(lst.begin());
-        this->coord[1] = *(lst.begin() + 1);
-        this->coord[2] = *(lst.begin() + 2);
+        this->coord[1] = *(lst.begin()+1);
+        this->coord[2] = *(lst.begin()+2);
     }
 };
 
@@ -27,33 +26,30 @@ public:
     VerletList(double cutoff) : cutoff(cutoff) {}
 
     // 2. add particle
-    void addParticle(Particle &particle) {
-        this->particles.push_back(particle);
+    void add_particle(const Particle &p) {
+        this->particles.push_back(p);
     }
 
-
     // 3. get distance
-    const double get_distances(const Particle &p1, const Particle &p2) const {
+    const double get_distance(const Particle &p1, const Particle &p2) const {
         double dx = p2.coord[0] - p1.coord[0];
-        double dy = p2.coord[1] - p1.coord[0];
-        double dz = p2.coord[2] - p1.coord[0];
+        double dy = p2.coord[1] - p1.coord[1];
+        double dz = p2.coord[2] - p2.coord[2];
 
         return std::sqrt(dx*dx + dy*dy + dz*dz);
     }
 
-
-    // 4. Build lists
+    // 4. build lists
     void build_lists() {
         int num_particles = this->particles.size();
         this->lists.resize(num_particles);
-
         for (int i=0; i<num_particles; i++) {
             this->lists[i].clear();
         }
 
         for (int i=0; i<num_particles; i++) {
             for (int j=i+1; j<num_particles; j++) {
-                if (this->get_distances(this->particles[i], this->particles[j]) <= this->cutoff) {
+                if ( this->get_distance(this->particles[i], this->particles[j]) < this->cutoff ) {
                     this->lists[i].push_back(j);
                     this->lists[j].push_back(i);
                 }
@@ -61,38 +57,33 @@ public:
         }
     }
 
-
-    // 5. 
+    // 5. print lists
     void print_lists() {
-        for (int i=0; i<this->lists.size(); i++) {
+        for (int i=0; i<this->particles.size(); i++) {
             printf("%d: ", i);
             for (int j=0; j<this->lists[i].size(); j++) {
-                printf("%d\t", this->lists[i][j]);
+                printf("%d, ", this->lists[i][j]);
             }
             printf("\n");
         }
     }
-
 
 };
 
 
 
 int main() {
-    // Create Verlet list with a cutoff radius of 2.0
-    VerletList verletList(2.0);
+    Particle p1 = {0., 0., 0.};
+    Particle p2 = {1., 1., 1.};
+    Particle p3 = {2., 2., 2.};
 
-    // Add particles to the Verlet list
-    Particle p1 = {0.0, 0.0, 0.0};
-    Particle p2 = {1.0, 1.0, 1.0};
-    Particle p3 = {2.0, 2.0, 2.0};
-    verletList.addParticle(p1);
-    verletList.addParticle(p2);
-    verletList.addParticle(p3);
+    VerletList vl(2.);
+    vl.add_particle(p1);
+    vl.add_particle(p2);
+    vl.add_particle(p3);
 
-    // Build the Verlet lists
-    verletList.build_lists();
+    vl.build_lists();
+    vl.print_lists();
 
-    verletList.print_lists();
     return 0;
 }
